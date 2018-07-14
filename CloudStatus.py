@@ -1,5 +1,5 @@
 class CloudStatus:
 
  def __init__(self,instancesPerformance):
-   self.instancePerformance=instancePerformance
+   self.instancePerformance=instancesPerformance
 

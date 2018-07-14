@@ -6,16 +6,34 @@ import pickle
 import csv
 import sys
 from RepeatedTimer import *
+from CloudStatus import *
 numberOfUser=int(sys.argv[1])
 connectionPool=dict()
+performanceInstances=[]
 
 
+def monitorInstances(performanceInstances):
+ values=dict()
+ options=[1,2,3,4,5,6,7,8,9,10]
+ values['a']=random.choice(options)
+ values['b']=random.choice(options)
+ values['c']=random.choice(options)
+ values['d']=random.choice(options)
+ values['e']=random.choice(options)
+ values['f']=random.choice(options)
+ idleInstance=CloudStatus(values)
+ performanceInstances.append(idleInstance)
+ print("HelloWorld") #run performance algorithm and  insert into the instance array.
 
-def monitorInstances(name):
- print("I am Monitoring Instances",name)
 
-
-
+def updateEdgeServer(performaneInstances,controlPort):
+    s=createNewSocketConnection('0.0.0.0',controlPort)
+    c, addr = s.accept()
+    while(True):
+       ping = c.recv(1024)
+       currentInstance=performanceInstances[-1]
+       stream=pickle.dumps(currentInstance)
+       c.send(stream)
 def createClientSocket(host,port):
     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     s.connect((host,port))
@@ -51,9 +69,19 @@ def sendForComputation(socket,frameSize, imgByte):
   socket.send(imgByte)
   return socket.recv(1024)
  
+def idlePerformance():
+ values=dict()
+ values['a']=1
+ values['b']=2
+ values['c']=4
+ values['d']=5
+ values['e']=6
+ values['f']=7
+ idleInstance=CloudStatus(values)
+ return idleInstance
 
 def interfaceCamera(port,dedicatedConnections):
-    print("camera are expected at port",port)
+    print("Edge Server are expected at port",port)
     s=createNewSocketConnection('0.0.0.0',port)
     while(True):
      c, addr = s.accept()
@@ -73,7 +101,7 @@ def interfaceCamera(port,dedicatedConnections):
         c.send("Helloworld".encode("utf-8"))
       except:
         break
-def Main(numberOfUser):
+def Main(numberOfUser,performanceInstances):
  host='127.0.0.1'
  instanceInfo=readInstanceInfo('config.csv')
  for resolution,accessConfig in instanceInfo.items(): 
@@ -85,14 +113,18 @@ def Main(numberOfUser):
    pool.append(socket)
   connectionPool[resolution]=pool
  userPort=9090
+ controlPort=9080
  for user in range(0,numberOfUser):
   dedicatedConnections=createChannelForUser(user)
   start_new_thread(interfaceCamera,(userPort,dedicatedConnections))
   userPort=userPort+1
- backGroundProcess = RepeatedTimer(10, monitorInstances, "Anil Acharya")
+ idleInstance=idlePerformance()
+ performanceInstances.append(idleInstance)
+ start_new_thread(updateEdgeServer,(performanceInstances,9080))
+ backGroundProcess = RepeatedTimer(5, monitorInstances, performanceInstances)
  print("Initilization completed") 
  input()
 
 
 if __name__ == '__main__':
-    Main(numberOfUser)
+    Main(numberOfUser,performanceInstances)
