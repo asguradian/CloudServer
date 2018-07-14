@@ -5,8 +5,16 @@ import random
 import pickle
 import csv
 import sys
+from RepeatedTimer import *
 numberOfUser=int(sys.argv[1])
 connectionPool=dict()
+
+
+
+def monitorInstances(name):
+ print("I am Monitoring Instances",name)
+
+
 
 def createClientSocket(host,port):
     s = socket.socket(socket.AF_INET,socket.SOCK_STREAM)
@@ -81,16 +89,9 @@ def Main(numberOfUser):
   dedicatedConnections=createChannelForUser(user)
   start_new_thread(interfaceCamera,(userPort,dedicatedConnections))
   userPort=userPort+1
+ backGroundProcess = RepeatedTimer(10, monitorInstances, "Anil Acharya")
  print("Initilization completed") 
  input()
-
-
-
-
-
-
-
-
 
 
 if __name__ == '__main__':
