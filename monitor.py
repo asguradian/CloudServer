@@ -5,27 +5,25 @@ import random
 import pickle
 import csv
 import sys
+import time
 from RepeatedTimer import *
 from CloudStatus import *
+import copy
+import numpy as np
 numberOfUser=int(sys.argv[1])
 connectionPool=dict()
+runningResponses=dict()
 performanceInstances=[]
 
 
-def monitorInstances(performanceInstances):
+def monitorInstances(performanceInstances,runningResponses):
  values=dict()
- options=[1,2,3,4,5,6,7,8,9,10]
- values['a']=random.choice(options)
- values['b']=random.choice(options)
- values['c']=random.choice(options)
- values['d']=random.choice(options)
- values['e']=random.choice(options)
- values['f']=random.choice(options)
+ runningResponse=copy.deepcopy(runningResponses)
+ for resolution, response in runningResponse.items():
+  if(len(response)!=0):
+   values[resolution]=np.mean(response)
  idleInstance=CloudStatus(values)
  performanceInstances.append(idleInstance)
- print("HelloWorld") #run performance algorithm and  insert into the instance array.
-
-
 def updateEdgeServer(performaneInstances,controlPort):
     s=createNewSocketConnection('0.0.0.0',controlPort)
     c, addr = s.accept()
@@ -80,7 +78,7 @@ def idlePerformance():
  idleInstance=CloudStatus(values)
  return idleInstance
 
-def interfaceCamera(port,dedicatedConnections):
+def interfaceCamera(port,dedicatedConnections,runningResponses):
     print("Edge Server are expected at port",port)
     s=createNewSocketConnection('0.0.0.0',port)
     while(True):
@@ -97,14 +95,18 @@ def interfaceCamera(port,dedicatedConnections):
          chunk=chunk+imgByte
          i=i+len(imgByte)
         data=pickle.loads(chunk)
+        computeStartTime=time.time()
         dataResult=sendForComputation(dedicatedConnections[data.resolution],frameSize,chunk)
+        timead=time.time()-computeStartTime
+        (runningResponses[data.resolution]).append(timead)
         c.send("Helloworld".encode("utf-8"))
       except:
         break
-def Main(numberOfUser,performanceInstances):
+def Main(numberOfUser,performanceInstances,runningResponses):
  host='127.0.0.1'
  instanceInfo=readInstanceInfo('config.csv')
  for resolution,accessConfig in instanceInfo.items(): 
+  runningResponses[resolution]=[]
   initialPort=int(accessConfig[0])
   pool=[]
   for counter in range(0, int(accessConfig[1])):
@@ -116,15 +118,13 @@ def Main(numberOfUser,performanceInstances):
  controlPort=9080
  for user in range(0,numberOfUser):
   dedicatedConnections=createChannelForUser(user)
-  start_new_thread(interfaceCamera,(userPort,dedicatedConnections))
+  start_new_thread(interfaceCamera,(userPort,dedicatedConnections,runningResponses))
   userPort=userPort+1
  idleInstance=idlePerformance()
  performanceInstances.append(idleInstance)
  start_new_thread(updateEdgeServer,(performanceInstances,9080))
- backGroundProcess = RepeatedTimer(5, monitorInstances, performanceInstances)
+ backGroundProcess = RepeatedTimer(5, monitorInstances, performanceInstances,runningResponses)
  print("Initilization completed") 
  input()
-
-
 if __name__ == '__main__':
-    Main(numberOfUser,performanceInstances)
+    Main(numberOfUser,performanceInstances,runningResponses)
